@@ -1,11 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from random import randint
-from matplotlib import pyplot as plt
 from skimage import io
 from skimage import filter
-from skimage.filter import threshold_otsu
-from skimage.draw import polygon
 from skimage.morphology import disk, erosion, square, dilation
 from skimage import measure
 
@@ -19,21 +16,30 @@ def tresh(image):
     return image
 
 
-def main():
-    image = io.imread('kostka.jpg', as_grey=True);
+def convert_image(image):
     image = dilation(image, square(15))
     image = filter.gaussian_filter(image, 0.99)
     image = erosion(image, selem=square(20))
-    print(image)
-    image = tresh(image);
+    image = tresh(image)
+    return image
+
+
+def main():
+    images = []
+    for i in range(0, 11):
+        if i < 10:
+            image = io.imread('kostki_ex/' + 'kostka_0' + str(i) + '.JPG', as_grey=True)
+            images.append(image)
+        else:
+            image = io.imread('kostki_ex/' + 'kostka_' + str(i) + '.JPG', as_grey=True)
+            images.append(image)
+
+    image = convert_image(images[0])
     contours = measure.find_contours(image, level = 0)
     print(len(contours))
-    #print(contours)
+
     io.imshow(image);
-
     io.show()
-
-
 
 if __name__ == '__main__':
     main()
