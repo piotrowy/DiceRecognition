@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import math
 from random import randint
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,7 +13,6 @@ from skimage.transform import hough_circle
 from skimage.draw import circle_perimeter
 from skimage.feature import peak_local_max
 from skimage.morphology import disk, erosion, square, dilation
-from skimage.transform._hough_transform import probabilistic_hough_line
 
 
 def tresh(image):
@@ -26,13 +26,13 @@ def tresh(image):
 
 
 def convert_image(image):
-    #image = dilation(image, square(15))
-    #image = filter.gaussian_filter(image, 0.99)
-    #image = filter.rank.median(image, disk(3))
-    #image = erosion(image, selem=square(20))
+    # image = dilation(image, square(15))
+    # image = filter.gaussian_filter(image, 0.99)
+    # image = filter.rank.median(image, disk(3))
+    # image = erosion(image, selem=square(20))
+    # image = filter.canny(image)
     image = tresh(image)
     image = filter.rank.median(image, disk(18))
-    # image = filter.canny(image)
     return image
 
 
@@ -56,37 +56,33 @@ def load_all_from_range(start, end):
     return images
 
 
-def find_circles(image):
-    edges = filter.canny(image, sigma=3, low_threshold=10, high_threshold=50)
+def circle_center(contour):
+    x = 0
+    y = 0
+    for i in range(len(contour)):
+        x += contour[i][0]
+        y += contour[i][1]
+    return [x/len(contour), y/len(contour)]
 
-    fig, ax = plt.subplots(ncols=1, nrows=1)
 
-    # Detect two radii
-    hough_radii = np.arange(15, 30, 2)
-    hough_res = hough_circle(edges, hough_radii)
+def radius(point, center):
+    return math.sqrt(math.pow(center[0] - point[0], 2) + math.pow(center[1] - point[1], 2))
 
-    centers = []
-    accums = []
-    radii = []
 
-    for radius, h in zip(hough_radii, hough_res):
-        # For each radius, extract two circles
-        num_peaks = 2
-        peaks = peak_local_max(h, num_peaks=num_peaks)
-        centers.extend(peaks)
-        accums.extend(h[peaks[:, 0], peaks[:, 1]])
-        radii.extend([radius] * num_peaks)
+def avg_radius(contour, center):
+    r = 0
+    for i in range(len(contour)):
+        r += radius(contour[i], center)
+    return r/len(contour)
 
-    # Draw the most prominent 5 circles
-    image = color.gray2rgb(image)
-    for idx in np.argsort(accums)[::-1][:5]:
-        center_x, center_y = centers[idx]
-        radius = radii[idx]
-        cx, cy = circle_perimeter(center_y, center_x, radius)
-        image[cy, cx] = (220, 20, 20)
 
-    ax.imshow(image, cmap=plt.cm.gray)
-    plt.show()
+def check_circle(contour, center, avgr):
+    hits = 0
+    for i in range(len(contour)):
+        r = radius(contour[i], center)
+        if avgr + 0.1*avgr >= r >= avgr - 0.1*avgr:
+            hits += 1
+    return hits/len(contour)
 
 
 def draw_contours(image):
@@ -96,15 +92,17 @@ def draw_contours(image):
     fig, ax = plt.subplots()
     ax.imshow(image, interpolation='nearest', cmap=plt.cm.gray)
 
-    sum = 0
-
+    sum = 0.0
     for n, contour in enumerate(contours):
         sum += contour.shape[0]
-
     avg = sum/len(contours)
 
     for n, contour in enumerate(contours):
-        if float(contour.shape[0]) < avg:
+        cc = circle_center(contour)
+        avgr = avg_radius(contour, cc)
+        accuracy = check_circle(contour, cc, avgr)
+        print(cc, avgr, accuracy)
+        if float(contour.shape[0]) < avg and accuracy > 0.95:
             ax.plot(contour[:, 1], contour[:, 0], linewidth=2)
 
     ax.axis('image')
@@ -113,39 +111,9 @@ def draw_contours(image):
     plt.show()
 
 
-def probabilistic_hough(image):
-    edges = canny(image, 2, 1, 25)
-    lines = probabilistic_hough_line(edges, threshold=10, line_length=5,
-                                     line_gap=3)
-
-    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(8,4), sharex=True, sharey=True)
-
-    ax1.imshow(image, cmap=plt.cm.gray)
-    ax1.set_title('Input image')
-    ax1.set_axis_off()
-    ax1.set_adjustable('box-forced')
-
-    ax2.imshow(edges, cmap=plt.cm.gray)
-    ax2.set_title('Canny edges')
-    ax2.set_axis_off()
-    ax2.set_adjustable('box-forced')
-
-    ax3.imshow(edges * 0)
-
-    for line in lines:
-        p0, p1 = line
-        ax3.plot((p0[0], p1[0]), (p0[1], p1[1]))
-
-    ax3.set_title('Probabilistic Hough')
-    ax3.set_axis_off()
-    ax3.set_adjustable('box-forced')
-    plt.show()
-
-
 def main():
     image = load_image(6)
     image = convert_image(image)
-    # probabilistic_hough(image)
     draw_contours(image)
 
 
