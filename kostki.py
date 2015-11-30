@@ -26,11 +26,6 @@ def tresh(image):
 
 
 def convert_image(image):
-    # image = dilation(image, square(15))
-    # image = filter.gaussian_filter(image, 0.99)
-    # image = filter.rank.median(image, disk(3))
-    # image = erosion(image, selem=square(20))
-    # image = filter.canny(image)
     image = tresh(image)
     image = filter.rank.median(image, disk(18))
     return image
@@ -104,6 +99,7 @@ def draw_contours(image):
         print(cc, avgr, accuracy)
         if float(contour.shape[0]) < avg and accuracy > 0.95:
             ax.plot(contour[:, 1], contour[:, 0], linewidth=2)
+    # float(contour.shape[0]) - 0.1*float(contour.shape[0]) <= avg <= float(contour.shape[0]) + 0.1*float(contour.shape[0])
 
     ax.axis('image')
     ax.set_xticks([])
