@@ -3,16 +3,10 @@
 import math
 from random import randint
 import numpy as np
-import matplotlib.pyplot as plt
 from skimage import io
 from skimage import filter
 from skimage import measure
-from skimage import data, color
-from skimage.filter import canny
-from skimage.transform import hough_circle
-from skimage.draw import circle_perimeter
-from skimage.feature import peak_local_max
-from skimage.morphology import disk, erosion, square, dilation
+from skimage.morphology import disk
 
 
 CONFIDENCE_INTERVAL = 0.1
@@ -122,7 +116,7 @@ def perfect_three(args):
 
 
 def perfect_two(r):
-    return {'perfect_for_corner': [8.0*r]}
+    return {'perfect_for_corner': [8.0*r[0]]}
 
 
 def unified_length_to_rest(circles_list):
@@ -139,59 +133,71 @@ def arrays_probably_match(length, perfect_values, param):
     return 1
 
 
-def are_proper_dice_configuration(circles, function, radius=None):
-    length = unified_length_to_rest(circles)
-    print(length)
-    for n, schema in function(radius).items():
-        print(schema)
+def are_proper_dice_configuration(circles, function, radius_list=None):
+    if radius_list is not None:
+        length = point_distance(circles[0], circles[1])
+    else:
+        length = unified_length_to_rest(circles)
+    print('Długości: ', length)
+    for n, schema in function(radius_list).items():
+        print('Długości idealne: ', schema)
         if arrays_probably_match(schema, length, CONFIDENCE_INTERVAL):
             return 1
     return 0
 
 
-def get_from_binary_coded(circles, binary):
+def get_from_binary_coded(circles, binary, radius_list=None):
     result = []
-    for index, char in enumerate(reversed(binary)):
-        if char == '1':
-            result.append(circles[len(circles)-(index + 1)])
+    if radius_list is not None:
+        for index, char in enumerate(reversed(binary)):
+            if char == '1':
+                result.append(radius_list[len(radius_list)-(index + 1)])
+    else:
+        for index, char in enumerate(reversed(binary)):
+            if char == '1':
+                result.append(circles[len(circles)-(index + 1)])
     return result
 
 
-def check_radiuses(radiuses):
-    pass
+def check_radius(circles, binary, radius_list):
+    return get_from_binary_coded(circles, binary, radius_list)
 
 
-def find_configuration(circles, param, function, radiuses=None):
+def find_configuration(circles, param, function, radius_list=None):
     if len(circles) < param:
         return 0
 
     for i in range(0, (2**len(circles))):
         if bin(i).count('1') == param:
-            if param == 2:
-                if are_proper_dice_configuration(get_from_binary_coded(circles, bin(i)), function, check_radiuses(radiuses)):
+            if param == 2 and radius_list is not None:
+                if are_proper_dice_configuration(get_from_binary_coded(circles, bin(i)), function, check_radius(circles, bin(i), radius_list)):
                     return 1
             elif are_proper_dice_configuration(get_from_binary_coded(circles, bin(i)), function):
                 return 1
     return 0
 
 
+def print_result(res):
+    print('Wynik: ', res)
+
+
 def main():
-    image = load_image(6)
+    image = load_image(9)
     image = convert_image(image)
-    circles, radiuses = draw_contours(image)
-    print(len(circles))
+    circles, radius_list = draw_contours(image)
+    print('Kontury: ', len(circles))
     if find_configuration(circles, 6, perfect_six):
-        print(6)
+        print_result(6)
     elif find_configuration(circles, 5, perfect_five):
-        print(5)
+        print_result(5)
     elif find_configuration(circles, 4, perfect_four):
-        print(4)
+        print_result(4)
     elif find_configuration(circles, 3, perfect_three):
-        print(3)
-    elif find_configuration(circles, 2, perfect_two, radiuses):
-        print(2)
+        print_result(3)
+    elif find_configuration(circles, 2, perfect_two, radius_list):
+        print_result(2)
     else:
-        print(1)
+        print_result(1)
     exit(0)
 
 
