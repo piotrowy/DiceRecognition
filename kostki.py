@@ -15,15 +15,16 @@ from skimage.feature import peak_local_max
 from skimage.morphology import disk, erosion, square, dilation
 
 
+CONFIDENCE_INTERVAL = 0.1
+
+
 def tresh(image):
     for i in range(len(image)):
         for j in range(len(image[i])):
-            if image[i][j] < 0.3:
+            if image[i][j] < 0.4:
                 image[i][j] = 0
-            elif image[i][j] > 0.8:
-                image[i][j] = 1
             else:
-                image[i][j] = 0.5
+                image[i][j] = 1
     return image
 
 
@@ -62,24 +63,21 @@ def circle_center(contour):
     return [x/len(contour), y/len(contour)]
 
 
-def radius(point, center):
-    return math.sqrt(math.pow(center[0] - point[0], 2) + math.pow(center[1] - point[1], 2))
-
-
 def point_distance(point1, point2):
     return math.sqrt(math.pow(point1[0] - point2[0], 2) + math.pow(point1[1] - point2[1], 2))
+
 
 def avg_radius(contour, center):
     r = 0
     for i in range(len(contour)):
-        r += radius(contour[i], center)
+        r += point_distance(contour[i], center)
     return r/len(contour)
 
 
 def check_circle(contour, center, avgr):
     hits = 0
     for i in range(len(contour)):
-        r = radius(contour[i], center)
+        r = point_distance(contour[i], center)
         if avgr + 0.1*avgr >= r >= avgr - 0.1*avgr:
             hits += 1
     return hits/len(contour)
@@ -88,39 +86,49 @@ def check_circle(contour, center, avgr):
 def draw_contours(image):
     contours = measure.find_contours(image, level=0)
 
-    fig, ax = plt.subplots()
-    ax.imshow(image, interpolation='nearest', cmap=plt.cm.gray)
-
     sum = 0.0
     for n, contour in enumerate(contours):
         sum += contour.shape[0]
     avg = sum/len(contours)
 
-    count = 0
     circles = []
+    radius = []
 
     for n, contour in enumerate(contours):
         cc = circle_center(contour)
         avgr = avg_radius(contour, cc)
         accuracy = check_circle(contour, cc, avgr)
         if float(contour.shape[0]) < avg and accuracy > 0.95:
-            ax.plot(contour[:, 1], contour[:, 0], linewidth=2)
-            count = count + 1
             circles.append(cc)
-    # float(contour.shape[0]) - 0.1*float(contour.shape[0]) <= avg <= float(contour.shape[0]) + 0.1*float(contour.shape[0])
+            radius.append(avgr)
 
-    ax.axis('image')
-    ax.set_xticks([])
-    ax.set_yticks([])
-    # plt.show()
-
-    return circles
+    return circles, radius
 
 
-def unified_length_to_rest(sixCircles):
+def perfect_six(args):
+    return {'perfect_for_corner': [1.0, 1.6, 1.88, 2.0, 2.56], 'perfect_for_side': [1.0, 1.0, 1.6, 1.88, 1.88]}
+
+
+def perfect_five(args):
+    return {'perfect_for_corner': [1.0, 1.41, 1.41, 2.0], 'perfect_for_center': [1.0, 1.0, 1.0, 1.0]}
+
+
+def perfect_four(args):
+    return {'perfect_for_corner': [1.0, 1.0, 1.41]}
+
+
+def perfect_three(args):
+    return {'perfect_for_corner': [1.0, 2.0], 'perfect_for_center': [1.0, 1.0]}
+
+
+def perfect_two(r):
+    return {'perfect_for_corner': [8.0*r]}
+
+
+def unified_length_to_rest(circles_list):
     result = []
-    for center in sixCircles[1:]:
-        result.append(point_distance(sixCircles[0], center))
+    for center in circles_list[1:]:
+        result.append(point_distance(circles_list[0], center))
     return sorted([x/min(result) for x in result])
 
 
@@ -131,14 +139,13 @@ def arrays_probably_match(length, perfect_values, param):
     return 1
 
 
-def are_proper_dice_six(six_circles):
-    length = unified_length_to_rest(six_circles)
-    perfect_for_corner = [1.0, 1.6, 1.88, 2.0, 2.56]
-    perfect_for_side = [1.0, 1.0, 1.6, 1.88, 1.88]
-    if arrays_probably_match(length, perfect_for_corner, 0.05):
-        return 1
-    if arrays_probably_match(length, perfect_for_side, 0.05):
-        return 1
+def are_proper_dice_configuration(circles, function, radius=None):
+    length = unified_length_to_rest(circles)
+    print(length)
+    for n, schema in function(radius).items():
+        print(schema)
+        if arrays_probably_match(schema, length, CONFIDENCE_INTERVAL):
+            return 1
     return 0
 
 
@@ -150,28 +157,43 @@ def get_from_binary_coded(circles, binary):
     return result
 
 
-def find_six(circles):
+def check_radiuses(radiuses):
+    pass
 
-    if len(circles) < 6:
+
+def find_configuration(circles, param, function, radiuses=None):
+    if len(circles) < param:
         return 0
 
     for i in range(0, (2**len(circles))):
-        if bin(i).count('1') == 6:
-            if are_proper_dice_six(get_from_binary_coded(circles, bin(i))):
+        if bin(i).count('1') == param:
+            if param == 2:
+                if are_proper_dice_configuration(get_from_binary_coded(circles, bin(i)), function, check_radiuses(radiuses)):
+                    return 1
+            elif are_proper_dice_configuration(get_from_binary_coded(circles, bin(i)), function):
                 return 1
-
     return 0
 
-def main():
-    image = load_image(1)
-    image = convert_image(image)
-    circles = draw_contours(image)
-    if find_six(circles):
-        print(6)
-        exit(0)
 
-    # io.imshow(image);
-    # io.show()
+def main():
+    image = load_image(6)
+    image = convert_image(image)
+    circles, radiuses = draw_contours(image)
+    print(len(circles))
+    if find_configuration(circles, 6, perfect_six):
+        print(6)
+    elif find_configuration(circles, 5, perfect_five):
+        print(5)
+    elif find_configuration(circles, 4, perfect_four):
+        print(4)
+    elif find_configuration(circles, 3, perfect_three):
+        print(3)
+    elif find_configuration(circles, 2, perfect_two, radiuses):
+        print(2)
+    else:
+        print(1)
+    exit(0)
+
 
 if __name__ == '__main__':
     main()
