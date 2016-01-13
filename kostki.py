@@ -10,12 +10,33 @@ from skimage.morphology import disk
 
 
 CONFIDENCE_INTERVAL = 0.1
+THRESHOLD_LEVEL = 0.4
 
 
-def tresh(image):
+def perfect_six(args):
+    return {'perfect_for_corner': [1.0, 1.6, 1.88, 2.0, 2.56], 'perfect_for_side': [1.0, 1.0, 1.6, 1.88, 1.88]}
+
+
+def perfect_five(args):
+    return {'perfect_for_corner': [1.0, 1.41, 1.41, 2.0], 'perfect_for_center': [1.0, 1.0, 1.0, 1.0]}
+
+
+def perfect_four(args):
+    return {'perfect_for_corner': [1.0, 1.0, 1.41]}
+
+
+def perfect_three(args):
+    return {'perfect_for_corner': [1.0, 2.0], 'perfect_for_center': [1.0, 1.0]}
+
+
+def perfect_two(r):
+    return {'perfect_for_corner': [8.0*r[0]]}
+
+
+def threshold(image):
     for i in range(len(image)):
         for j in range(len(image[i])):
-            if image[i][j] < 0.4:
+            if image[i][j] < THRESHOLD_LEVEL:
                 image[i][j] = 0
             else:
                 image[i][j] = 1
@@ -23,7 +44,7 @@ def tresh(image):
 
 
 def convert_image(image):
-    image = tresh(image)
+    image = threshold(image)
     image = filter.rank.median(image, disk(18))
     return image
 
@@ -80,43 +101,23 @@ def check_circle(contour, center, avgr):
 def draw_contours(image):
     contours = measure.find_contours(image, level=0)
 
-    sum = 0.0
+    sum_shape = 0.0
     for n, contour in enumerate(contours):
-        sum += contour.shape[0]
-    avg = sum/len(contours)
+        sum_shape += contour.shape[0]
+    avg = sum_shape/len(contours)
 
     circles = []
     radius = []
 
     for n, contour in enumerate(contours):
         cc = circle_center(contour)
-        avgr = avg_radius(contour, cc)
-        accuracy = check_circle(contour, cc, avgr)
-        if float(contour.shape[0]) < avg and accuracy > 0.95:
+        average_radius = avg_radius(contour, cc)
+        accuracy = check_circle(contour, cc, average_radius)
+        if accuracy > 0.95:
             circles.append(cc)
-            radius.append(avgr)
+            radius.append(average_radius)
 
     return circles, radius
-
-
-def perfect_six(args):
-    return {'perfect_for_corner': [1.0, 1.6, 1.88, 2.0, 2.56], 'perfect_for_side': [1.0, 1.0, 1.6, 1.88, 1.88]}
-
-
-def perfect_five(args):
-    return {'perfect_for_corner': [1.0, 1.41, 1.41, 2.0], 'perfect_for_center': [1.0, 1.0, 1.0, 1.0]}
-
-
-def perfect_four(args):
-    return {'perfect_for_corner': [1.0, 1.0, 1.41]}
-
-
-def perfect_three(args):
-    return {'perfect_for_corner': [1.0, 2.0], 'perfect_for_center': [1.0, 1.0]}
-
-
-def perfect_two(r):
-    return {'perfect_for_corner': [8.0*r[0]]}
 
 
 def unified_length_to_rest(circles_list):
@@ -182,7 +183,7 @@ def print_result(res):
 
 
 def main():
-    image = load_image(9)
+    image = load_image(5)
     image = convert_image(image)
     circles, radius_list = draw_contours(image)
     print('Kontury: ', len(circles))
