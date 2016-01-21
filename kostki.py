@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import math
-from random import randint
 import numpy as np
 from skimage import io
 from skimage import filter
 from skimage import measure
 from skimage.morphology import disk
+# from random import randint
 
 
 CONFIDENCE_INTERVAL = 0.1
@@ -182,23 +182,27 @@ def print_result(res):
     print('Wynik: ', res)
 
 
+def option(opt):
+    return {
+        '2': perfect_two,
+        '3': perfect_three,
+        '4': perfect_four,
+        '5': perfect_five,
+        '6': perfect_six
+    }[opt]
+
 def main():
     image = load_image(5)
     image = convert_image(image)
     circles, radius_list = draw_contours(image)
     print('Kontury: ', len(circles))
-    if find_configuration(circles, 6, perfect_six):
-        print_result(6)
-    elif find_configuration(circles, 5, perfect_five):
-        print_result(5)
-    elif find_configuration(circles, 4, perfect_four):
-        print_result(4)
-    elif find_configuration(circles, 3, perfect_three):
-        print_result(3)
-    elif find_configuration(circles, 2, perfect_two, radius_list):
-        print_result(2)
-    else:
-        print_result(1)
+    for i in range(6, 0):
+        if i == 1:
+            print_result(i)
+            break
+        elif find_configuration(circles, i, option(i)):
+            print_result(i)
+            break
     exit(0)
 
 
