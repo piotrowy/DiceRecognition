@@ -191,6 +191,7 @@ def option(opt):
         '6': perfect_six
     }[opt]
 
+
 def main():
     image = load_image(5)
     image = convert_image(image)
@@ -199,7 +200,10 @@ def main():
     for i in range(6, 0):
         if i == 1:
             print_result(i)
-            break
+        elif i == 2:
+            if find_configuration(circles, 2, option(i), radius_list):
+                print_result(i)
+                break
         elif find_configuration(circles, i, option(i)):
             print_result(i)
             break
