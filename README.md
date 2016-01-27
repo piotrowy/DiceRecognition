@@ -1,1 +1,3 @@
-Projekt na uczelnię z KCK, sprawdzam czy repo mi dobrze działa.
+#Dice recognition
+
+Projekt na uczelnię do rozpoznawania wyniku rzutu kostką K6.
